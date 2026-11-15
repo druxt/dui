@@ -14,7 +14,7 @@ rewritten, so the look matches by construction and not by eye.
 
 ## What it provides
 
-- **The theme.** A Tailwind preset carrying the palette, both daisyUI themes,
+- **The theme.** A Tailwind preset with the palette, both daisyUI themes,
   the motion tokens and every prose rule, plus the stylesheets for the code
   blocks and the authored content.
 - **The shell.** A `docs` layout: header, collapsible navigation, content
@@ -48,7 +48,7 @@ module.exports = { presets: [require('@druxt/dui/tailwind-preset')] }
 List `@druxt/dui` before `@nuxt/content`. Content parses every file while it
 initialises, so a hook registered by a module listed after it never runs.
 
-The site needs a Vuex store, because the page hands the layout its navigation
+The site needs a Vuex store, because a page passes the layout its navigation
 and table of contents through one. Nuxt 2 only creates a store when a `store/`
 directory exists, so an empty `store/index.js` is enough.
 

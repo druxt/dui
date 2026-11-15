@@ -20,19 +20,50 @@
     "theme",
     "ui"
   ],
-  "main": "module.js",
+  "engines": {
+    "node": ">=16.20.1"
+  },
+  "packageManager": "npm@8.19.4",
+  "main": "dist/index.ssr.js",
+  "exports": {
+    ".": {
+      "require": "./dist/index.ssr.js",
+      "import": "./dist/index.ssr.js"
+    },
+    "./tailwind-preset": "./dist/tailwind-preset.js",
+    "./components/*": "./dist/components/*",
+    "./layouts/*": "./dist/layouts/*",
+    "./plugins/*": "./dist/plugins/*",
+    "./assets/*": "./dist/assets/*",
+    "./utils/*": "./dist/utils/*",
+    "./package.json": "./package.json"
+  },
   "files": [
-    "assets",
-    "color-mode-theme.client.js",
-    "components",
-    "content-links.client.js",
-    "copy-buttons.client.js",
-    "layouts",
-    "module.js",
-    "plugin.js",
-    "tailwind-preset.js",
-    "utils"
+    "dist",
+    "CHANGELOG.md"
   ],
+  "scripts": {
+    "build": "siroc build",
+    "build:watch": "siroc build --watch",
+    "changeset": "changeset",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "lint": "npm run lint:js && npm run lint:format && npm run lint:md && npm run lint:cspell && npm run lint:private && npm run lint:attribution && npm run lint:knip",
+    "lint:attribution": "bash .gitlab/scripts/check-attribution.sh",
+    "lint:audit": "npm audit --omit=dev --audit-level=high",
+    "lint:commit": "commitlint",
+    "lint:cspell": "cspell lint --no-progress --no-must-find-files --gitignore --dot \"**/*.{js,mjs,vue,css,json,jsonc,md,yml,yaml}\"",
+    "lint:format": "prettier --check \"**/*.{js,mjs,vue,json,jsonc,md,yml,yaml}\"",
+    "lint:format:fix": "prettier --write \"**/*.{js,mjs,vue,json,jsonc,md,yml,yaml}\"",
+    "lint:js": "eslint --ext .js,.cjs,.mjs,.vue src scripts .changeset",
+    "lint:knip": "knip --include dependencies,unlisted --no-config-hints",
+    "lint:md": "markdownlint-cli2 \"**/*.md\"",
+    "lint:private": "node scripts/lint-private-refs.mjs",
+    "lint:prose": "PROSE_LINT_GLOB='!.changeset/**' bash .gitlab/scripts/lint-prose.sh --all",
+    "lint:prose:install": "bash .gitlab/scripts/install-vale.sh .vale/bin .vale/styles",
+    "prepare": "node scripts/postinstall.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "release:version": "changeset version && npm install --package-lock-only --ignore-scripts --no-audit --no-fund"
+  },
   "peerDependencies": {
     "nuxt": "^2.15.0",
     "tailwindcss": "^2.2.0"
@@ -41,5 +72,22 @@
     "@tailwindcss/typography": "0.4.1",
     "daisyui": "1.25.4",
     "prismjs": "^1.29.0"
+  },
+  "devDependencies": {
+    "@changesets/cli": "2.25.2",
+    "@commitlint/cli": "17.8.1",
+    "@commitlint/config-conventional": "17.8.1",
+    "cspell": "7.3.9",
+    "eslint": "8.28.0",
+    "eslint-config-prettier": "8.10.0",
+    "eslint-plugin-nuxt": "4.0.0",
+    "eslint-plugin-vue": "9.32.0",
+    "knip": "2.43.0",
+    "markdownlint-cli2": "0.10.0",
+    "prettier": "3.3.3",
+    "siroc": "0.16.0"
+  },
+  "overrides": {
+    "@types/minimatch": "5.1.2"
   }
 }
