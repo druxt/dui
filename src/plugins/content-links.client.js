@@ -21,6 +21,20 @@
 const SETTLE_MS = 1500
 const FRAME_MS = 50
 
+/*
+ * Nuxt 2 replaces the router's push with its own, which passes an onComplete
+ * callback to vue-router. vue-router returns a promise only when it is given
+ * no callbacks, so push here returns undefined, and the promise chain this
+ * code used to hang off it threw a TypeError on every click. The navigation
+ * had already happened by then, so the page still moved and only the work
+ * queued after it was lost.
+ */
+const afterPush = (pushed, then) => {
+  if (pushed && typeof pushed.then === 'function')
+    pushed.then(then).catch(() => {})
+  else then()
+}
+
 const scrollToHash = (hash) => {
   const id = decodeURIComponent(hash.slice(1))
   if (!id) return
@@ -72,8 +86,9 @@ export default ({ app }) => {
       if (href === '#') return
       event.preventDefault()
       const { path, query } = app.router.currentRoute
-      app.router.push({ path, query, hash: href }).catch(() => {})
-      scrollToHash(href)
+      afterPush(app.router.push({ path, query, hash: href }), () =>
+        scrollToHash(href)
+      )
       return
     }
 
@@ -98,11 +113,8 @@ export default ({ app }) => {
       return
     }
 
-    app.router
-      .push(path)
-      .then(() => {
-        if (hash) scrollToHash(hash)
-      })
-      .catch(() => {})
+    afterPush(app.router.push(path), () => {
+      if (hash) scrollToHash(hash)
+    })
   })
 }
