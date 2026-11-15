@@ -1,5 +1,12 @@
 /**
- * Fail if a tracked file points at a host only the author can reach.
+ * Fail if a tracked file points at somewhere only the author can reach.
+ *
+ * Two shapes: a host no resolver outside a LAN can answer, and a lockfile
+ * entry resolving to a path outside the repository. The second is the one
+ * AGENTS.md singles out, because a lockfile is long, generated and never read,
+ * and `npm install` writes a sibling directory into it the moment one is
+ * linked for local work. It installs for the author and gives everyone else a
+ * dangling link, with no error at install time to say so.
  *
  * This repository is public, and its README and example are what people
  * copy to set up authentication, so a private URL here is not a buried
@@ -127,6 +134,27 @@ export function findPrivateRefs(text) {
   return found
 }
 
+/**
+ * Lockfile entries resolving outside the repository, with the line each sits
+ * on. A `file:` specifier and a bare `../` both name the author's disk; an
+ * `npm` registry URL and a plain version do not.
+ */
+export function findEscapingPaths(text) {
+  const found = []
+  text.split('\n').forEach((line, index) => {
+    const match = line.match(
+      /"(?:resolved|version)":\s*"(?:file:)?(\.\.?\/[^"]*)"/
+    )
+    if (match) {
+      found.push({ line: index + 1, target: match[1] })
+    }
+  })
+  return found
+}
+
+/** The generated files whose entries name where a dependency came from. */
+const LOCKFILES = ['package-lock.json', 'npm-shrinkwrap.json']
+
 /** Tracked files, which is the set that actually gets published. */
 export function trackedFiles(root = ROOT) {
   return execFileSync('git', ['-C', root, 'ls-files', '-z'], {
@@ -167,6 +195,13 @@ export function lintPrivateRefs(root = ROOT) {
     for (const hit of findPrivateRefs(text)) {
       problems.push(`${file}:${hit.line}: ${hit.host}`)
     }
+    if (LOCKFILES.includes(path.basename(file))) {
+      for (const hit of findEscapingPaths(text)) {
+        problems.push(
+          `${file}:${hit.line}: ${hit.target} (outside the repository)`
+        )
+      }
+    }
   }
   return problems
 }
@@ -177,7 +212,7 @@ export function main(root = ROOT) {
     console.error(
       [
         '',
-        'These tracked files reference a host that only resolves on a private network:',
+        'These tracked files reference somewhere only this machine can reach:',
         '',
         ...problems.map((problem) => `  ${problem}`),
         '',
@@ -188,7 +223,7 @@ export function main(root = ROOT) {
     )
     process.exit(1)
   }
-  console.log('No private hosts referenced by tracked files.')
+  console.log('No tracked file points anywhere private.')
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

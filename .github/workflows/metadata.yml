@@ -1,0 +1,62 @@
+---
+name: Metadata
+
+# The description checks, on the events that change a description.
+#
+# `ci.yml` runs them too, but on the default pull_request activity types, which
+# do not include `edited`. A description edited after a green run is never
+# looked at again, and an attribution footer added there is exactly what the
+# attribution check exists to catch.
+#
+# A separate workflow rather than `edited` on ci.yml. Adding it there means
+# every bot that edits a description cancels the validation run in progress,
+# and a review bot edits the description each time it posts. ci.yml stays on
+# the default types and keeps its own copies of these checks for the push case.
+#
+# `synchronize` is here although a push changes neither field: a required check
+# has to exist on the head commit, and a workflow firing only on `opened` and
+# `edited` leaves the newest commit with nothing to satisfy it.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: metadata-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  description:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commit SHAs, not tags. A tag is a mutable
+      # reference to code that runs with this repository's credentials.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          persist-credentials: false
+          # Both checks read this change's own commits as well as the
+          # description, so its base has to be present.
+          fetch-depth: 0
+
+      # No Node setup and no install: both checks are shell over git and Vale.
+
+      # The work is the author's. No commit or pull request description may
+      # credit an AI tool as author, co-author or generator.
+      - name: Check for AI attribution
+        env:
+          ATTRIBUTION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MERGE_REQUEST_DESCRIPTION: ${{ github.event.pull_request.body }}
+        run: bash .gitlab/scripts/check-attribution.sh
+
+      # Project voice over the description and this change's commit messages.
+      - name: Lint prose
+        env:
+          PROSE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MERGE_REQUEST_DESCRIPTION: ${{ github.event.pull_request.body }}
+          PROSE_LINT_GLOB: '!.changeset/**'
+        run: |
+          bash .gitlab/scripts/install-vale.sh .vale/bin .vale/styles
+          bash .gitlab/scripts/lint-prose.sh

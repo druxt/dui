@@ -87,8 +87,10 @@ Segoe
 tspan
 COEP
 
-# British spelling, as the rest of the repository uses, and the chokidar
-# environment variable scripts/watch.mjs reads.
+# British spelling, as the rest of the repository uses, the chokidar
+# environment variable scripts/watch.mjs reads, and the lockfile constant in
+# scripts/lint-private-refs.mjs.
+LOCKFILES
 normalising
 Serialised
 USEPOLLING

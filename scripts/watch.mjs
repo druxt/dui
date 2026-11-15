@@ -68,5 +68,12 @@ watcher.on('all', (event, file) => {
   runBuild()
 })
 
-console.log(`Watching ${path.relative(ROOT, SRC)} for changes`)
-runBuild()
+// The first build waits for `ready`, which chokidar emits once the initial
+// scan has finished. chokidar installs its watches asynchronously, so a save
+// landing before this point becomes part of that scan's baseline rather than
+// an event, and `ignoreInitial` then drops it: the build would read the file
+// and finish with no rebuild queued for the edit it raced.
+watcher.once('ready', () => {
+  console.log(`Watching ${path.relative(ROOT, SRC)} for changes`)
+  runBuild()
+})
