@@ -1,0 +1,45 @@
+{
+  "name": "@druxt/dui",
+  "version": "0.1.0",
+  "description": "The DruxtJS interface as a Nuxt 2 module: the theme, the documentation shell and the components both druxtjs.org and a module's documentation site are built from.",
+  "license": "MIT",
+  "repository": "github:druxt/dui",
+  "homepage": "https://druxtjs.org",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "components",
+    "daisyui",
+    "design system",
+    "docs",
+    "documentation",
+    "druxt",
+    "nuxt",
+    "tailwind",
+    "theme",
+    "ui"
+  ],
+  "main": "module.js",
+  "files": [
+    "assets",
+    "color-mode-theme.client.js",
+    "components",
+    "content-links.client.js",
+    "copy-buttons.client.js",
+    "layouts",
+    "module.js",
+    "plugin.js",
+    "tailwind-preset.js",
+    "utils"
+  ],
+  "peerDependencies": {
+    "nuxt": "^2.15.0",
+    "tailwindcss": "^2.2.0"
+  },
+  "dependencies": {
+    "@tailwindcss/typography": "0.4.1",
+    "daisyui": "1.25.4",
+    "prismjs": "^1.29.0"
+  }
+}

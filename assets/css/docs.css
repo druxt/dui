@@ -1,0 +1,40 @@
+/*
+ * Rules the authored documentation needs, on top of the shared theme.
+ *
+ * Kept apart from app.css so that file stays the copy druxtjs.org also uses,
+ * and a change here cannot drift the two sites' shared baseline.
+ */
+
+/*
+ * A table wider than its column scrolls instead of being cut off.
+ *
+ * The content column is capped at 46rem, and a reference table of four
+ * columns is routinely wider than that. Without this the overflow is simply
+ * clipped at the column's edge: the last column's text is sliced mid-word and
+ * there is nothing on screen to say that more of it exists. Measured on the
+ * node preview options table, 719px of table in a 696px column on a laptop
+ * and in 358px on a phone.
+ *
+ * display: block is what makes a table scrollable at all, since overflow does
+ * not apply to table boxes.
+ */
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/*
+ * The banner sits hard against the title without this.
+ *
+ * The theme strips margins from a linked image so a row of shield badges
+ * renders inline rather than as a stack of blocks. A README's banner is a
+ * linked image too, and it is the first thing in the document, so the same
+ * rule left 0px between the artwork and the h1 beneath it. Badges are always
+ * inside a paragraph; the banner is a direct child of the document, which is
+ * what separates the two here.
+ */
+.nuxt-content > a > img {
+  display: block;
+  margin-bottom: 2rem;
+}
