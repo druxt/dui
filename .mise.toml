@@ -20,7 +20,7 @@ description = "Build the module with siroc"
 run = "npm run build"
 
 [tasks.lint]
-description = "Run every linter"
+description = "Run every linter in the lint script"
 run = "npm run lint"
 
 [tasks."lint:js"]
@@ -51,8 +51,14 @@ run = "npm run lint:audit"
 # missing npm script fails on the script being missing rather than on anything
 # about the code. They arrive with the tests.
 
+# Named for what it runs, not for the pipeline. The pipelines also run prose
+# lint, YAML and workflow lint, commit lint, the dependency audit, secret
+# detection and the pack-and-install check, each of which needs something this
+# task does not set up: Vale installed, its own image, a commit range, or a
+# registry install into an empty project. A task described as the pipeline
+# would be read as cover for checks it never ran.
 [tasks.ci]
-description = "Every check the pipelines run, and the build"
+description = "Run the linters and the build"
 depends = ["lint", "build"]
 
 # ---------------------------------------------------------------------------
