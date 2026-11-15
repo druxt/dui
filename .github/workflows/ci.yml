@@ -92,9 +92,26 @@ jobs:
       # Nuxt 2's end-of-life tree is merged into the production graph and every
       # advisory in it is reported. A gate that can only be red teaches people
       # to ignore it. It blocks again when this package builds for Nuxt 3.
+      #
+      # GitLab's allow_failure shows such a job as failed with a warning.
+      # continue-on-error has no equivalent: the step renders green whatever
+      # npm returns, so a report nobody can see is all that is left of it. The
+      # count goes to the run summary instead, which is on the page a reviewer
+      # already opens.
       - name: Audit shipped dependencies (report-only)
         continue-on-error: true
-        run: npm run lint:audit
+        run: |
+          npm run lint:audit | tee "$RUNNER_TEMP/audit.txt"
+          status=${PIPESTATUS[0]}
+          {
+            echo '### Dependency audit (report-only)'
+            echo
+            grep -E '^[0-9]+ vulnerabilities' "$RUNNER_TEMP/audit.txt" \
+              || echo 'No advisories reported.'
+            echo
+            echo 'Report-only while this package builds for Nuxt 2.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
 
   build:
     runs-on: ubuntu-latest
