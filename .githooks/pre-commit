@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# The fast half of CI.
+#
+# Lint only, because this package has no tests yet. The hook gains them in the
+# same change that adds them: a `test` script that exists so this line can run
+# would be a check incapable of going red, which is worse than an absent one
+# because it reads as coverage.
+set -e
+npm run --silent lint

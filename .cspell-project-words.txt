@@ -1,0 +1,96 @@
+# Words this project uses that the standard dictionaries do not carry.
+# Add a term here rather than switching the check off for a file.
+actionlint
+autobuild
+Autobuild
+automerge
+behaviour
+bookworm
+cloudflared
+Codespaces
+colour
+commitlint
+consola
+corepack
+cspell
+davidanson
+dbaeumer
+DDEV
+devcontainer
+devcontainers
+druxt
+Druxt
+druxtjs
+esbenp
+esbuild
+freetype
+gitleaks
+hverlin
+hyperscript
+interruptible
+jsonapi
+knip
+Ksection
+Lando
+libfreetype
+libicu
+libjpeg
+libonig
+libpng
+libsqlite
+libxml
+libzip
+Licence
+lndo
+markdownlint
+mise
+networkidle
+nproc
+Nuxt
+nuxt
+nvm
+nvmrc
+opcache
+opencode
+pdo
+pyyaml
+shivammathur
+siroc
+sqlite
+unparseable
+vfox
+viewports
+yamllint
+
+# The DruxtJS interface library: its component prefix, the packages it builds
+# on, and the British spellings its prose uses.
+colours
+Colours
+daisyui
+mkdist
+duiheader
+initialises
+serialises
+nuxtjs
+prismjs
+stackblitz
+Stackblitz
+tailwindcss
+# Font stacks named in the Tailwind preset.
+Consolas
+Menlo
+Neue
+Segoe
+
+# SVG text spans in the diagram styles, and the cross-origin header the
+# StackBlitz panel explains it cannot set.
+tspan
+COEP
+
+# British spelling, as the rest of the repository uses, the chokidar
+# environment variable scripts/watch.mjs reads, and the lockfile constant in
+# scripts/lint-private-refs.mjs.
+LOCKFILES
+normalising
+Serialised
+USEPOLLING

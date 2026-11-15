@@ -1,0 +1,71 @@
+# Pinned toolchain. `mise install` gives every contributor and every CI job the
+# same Node, so "works on my machine" is a statement about a version anyone can
+# reproduce.
+#
+# The tasks below are the commands CI runs. Keeping them here rather than only
+# in .gitlab-ci.yml means a maintainer can run exactly what the pipeline runs,
+# and the pipeline stays a thin wrapper rather than a second source of truth.
+
+[tools]
+# PHP for the example backend (example/drupal, Drupal 11); Node for the module.
+php = "8.4"
+node = "16.20.1"
+
+[tasks.install]
+description = "Install dependencies with the manager package.json declares"
+run = "corepack enable && corepack prepare --activate && npm ci"
+
+[tasks.build]
+description = "Build the module with siroc"
+run = "npm run build"
+
+[tasks.lint]
+description = "Run every linter in the lint script"
+run = "npm run lint"
+
+[tasks."lint:js"]
+description = "Lint the sources, tests and scripts"
+run = "npm run lint:js"
+
+[tasks."lint:md"]
+description = "Lint Markdown"
+run = "npm run lint:md"
+
+[tasks."lint:cspell"]
+description = "Spell-check the repository"
+run = "npm run lint:cspell"
+
+[tasks."lint:private"]
+description = "Fail if a tracked file points at a host only a private network resolves"
+run = "npm run lint:private"
+
+[tasks."lint:knip"]
+description = "Find unused and undeclared dependencies"
+run = "npm run lint:knip"
+
+[tasks."lint:audit"]
+description = "Audit shipped dependencies"
+run = "npm run lint:audit"
+
+# No test tasks. This package has no test script yet, and a task that calls a
+# missing npm script fails on the script being missing rather than on anything
+# about the code. They arrive with the tests.
+
+# Named for what it runs, not for the pipeline. The pipelines also run prose
+# lint, YAML and workflow lint, commit lint, the dependency audit, secret
+# detection and the pack-and-install check, each of which needs something this
+# task does not set up: Vale installed, its own image, a commit range, or a
+# registry install into an empty project. A task described as the pipeline
+# would be read as cover for checks it never ran.
+[tasks.ci]
+description = "Run the linters and the build"
+depends = ["lint", "build"]
+
+# ---------------------------------------------------------------------------
+# Git hooks. Run once per clone. `npm install` does this for you via
+# scripts/postinstall.mjs; this task is here for the case where someone has
+# skipped install scripts.
+# ---------------------------------------------------------------------------
+[tasks."hooks:install"]
+description = "Point git at the committed .githooks/ directory"
+run = "git config core.hooksPath .githooks"

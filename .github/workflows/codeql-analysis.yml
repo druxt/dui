@@ -1,0 +1,46 @@
+---
+name: CodeQL
+
+# Static analysis over the JavaScript in this repository: the module, the
+# runtime plugins and the repository's own scripts. Code scanning finds the
+# class of defect no linter here looks for, and the scheduled run matters as
+# much as the triggered one, because a new query finds a defect in code that
+# has not changed since it was written.
+#
+# The GitHub boilerplate's Autobuild step is left out. It builds compiled
+# languages, and this analysis has none to build.
+
+on:
+  push:
+    branches: [0.x]
+  pull_request:
+    branches: [0.x]
+  schedule:
+    - cron: '15 5 * * 2'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      # Actions are pinned to commit SHAs, not tags. A tag is a mutable
+      # reference to code that runs with this repository's credentials.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@4187e74d05793876e9989daffde9c3e66b4acd07  # v3
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@4187e74d05793876e9989daffde9c3e66b4acd07  # v3

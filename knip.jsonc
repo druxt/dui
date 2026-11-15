@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@2/schema.json",
+  // The module is the only entry point knip can find on its own. The Tailwind
+  // preset is reached through the exports map by a consumer's config, and the
+  // runtime files are read by path at build time and copied into the
+  // consuming site, so nothing in this package imports them.
+  "entry": [
+    "src/index.js",
+    "src/tailwind-preset.js",
+    "src/components/**/*.vue",
+    "src/layouts/**/*.vue",
+    "src/plugins/**/*.js",
+    "src/utils/**/*.js",
+    "scripts/*.mjs"
+  ],
+  "project": ["src/**/*.{js,vue}", "scripts/**/*.{js,mjs}"]
+}
