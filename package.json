@@ -54,6 +54,7 @@
     "lint:prose": "PROSE_LINT_GLOB='!.changeset/**' bash .gitlab/scripts/lint-prose.sh --all",
     "lint:prose:install": "bash .gitlab/scripts/install-vale.sh .vale/bin .vale/styles",
     "lint:title": "bash .gitlab/scripts/check-title.sh",
+    "prepack": "npm run build",
     "prepare": "node scripts/postinstall.mjs",
     "release:check": "node scripts/release-check.mjs",
     "release:version": "changeset version && npm install --package-lock-only --ignore-scripts --no-audit --no-fund"
