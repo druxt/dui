@@ -2,12 +2,6 @@
   "name": "@druxt/dui",
   "version": "0.1.0",
   "description": "The DruxtJS interface as a Nuxt 2 module: the theme, the documentation shell and the components both druxtjs.org and a module's documentation site are built from.",
-  "license": "MIT",
-  "repository": "github:druxt/dui",
-  "homepage": "https://druxtjs.org",
-  "publishConfig": {
-    "access": "public"
-  },
   "keywords": [
     "components",
     "daisyui",
@@ -20,11 +14,9 @@
     "theme",
     "ui"
   ],
-  "engines": {
-    "node": ">=16.20.1"
-  },
-  "packageManager": "npm@8.19.4",
-  "main": "dist/index.ssr.js",
+  "homepage": "https://druxtjs.org",
+  "repository": "github:druxt/dui",
+  "license": "MIT",
   "exports": {
     ".": {
       "require": "./dist/index.ssr.js",
@@ -38,13 +30,14 @@
     "./utils/*": "./dist/utils/*",
     "./package.json": "./package.json"
   },
+  "main": "dist/index.ssr.js",
   "files": [
     "dist",
     "CHANGELOG.md"
   ],
   "scripts": {
     "build": "siroc build",
-    "build:watch": "chokidar \"src/**/*\" --initial --command \"npm run build\"",
+    "build:watch": "node scripts/watch.mjs",
     "changeset": "changeset",
     "hooks:install": "git config core.hooksPath .githooks",
     "lint": "npm run lint:js && npm run lint:format && npm run lint:md && npm run lint:cspell && npm run lint:private && npm run lint:attribution && npm run lint:knip",
@@ -64,10 +57,6 @@
     "release:check": "node scripts/release-check.mjs",
     "release:version": "changeset version && npm install --package-lock-only --ignore-scripts --no-audit --no-fund"
   },
-  "peerDependencies": {
-    "nuxt": "^2.15.0",
-    "tailwindcss": "^2.2.0"
-  },
   "dependencies": {
     "@tailwindcss/typography": "0.4.1",
     "daisyui": "1.25.4",
@@ -77,7 +66,7 @@
     "@changesets/cli": "2.25.2",
     "@commitlint/cli": "17.8.1",
     "@commitlint/config-conventional": "17.8.1",
-    "chokidar-cli": "3.0.0",
+    "chokidar": "3.6.0",
     "cspell": "7.3.9",
     "eslint": "8.28.0",
     "eslint-config-prettier": "8.10.0",
@@ -87,6 +76,17 @@
     "markdownlint-cli2": "0.10.0",
     "prettier": "3.3.3",
     "siroc": "0.16.0"
+  },
+  "peerDependencies": {
+    "nuxt": "^2.15.0",
+    "tailwindcss": "^2.2.0"
+  },
+  "packageManager": "npm@8.19.4",
+  "engines": {
+    "node": ">=16.20.1"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "overrides": {
     "@types/minimatch": "5.1.2"

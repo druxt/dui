@@ -1,0 +1,162 @@
+---
+name: CI
+
+# The same lint and build set as .gitlab-ci.yml. This repository is mirrored,
+# so both hosts have to agree about what passes. Nothing on this side lints
+# this file: the GitLab pipeline runs actionlint over it in return.
+#
+# There is no test job, because there are no tests yet, and no end to end,
+# visual or preview job, because there is no example application to run them
+# against. Those arrive with Storybook.
+
+on:
+  push:
+    branches: [0.x]
+  pull_request:
+    branches: [0.x]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commit SHAs, not tags. A tag is a mutable
+      # reference to code that runs with this repository's credentials.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          persist-credentials: false
+          # The commit, attribution and prose checks read this change's own
+          # commits, so its base has to be present.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # corepack reads the packageManager field, so the manager the lockfile
+      # was written by is the one that installs it, and this file never names
+      # one.
+      - run: corepack enable && corepack prepare --activate
+
+      - run: npm ci
+
+      - run: npm run lint:js
+
+      - run: npm run lint:format
+
+      - run: npm run lint:md
+
+      - run: npm run lint:cspell
+
+      - run: npm run lint:knip
+
+      # This package is what other repositories' documentation sites are built
+      # from. A host only the author can reach must never reach a tracked file.
+      - run: npm run lint:private
+
+      # This repository squash-merges, so a prose title becomes the commit
+      # subject and breaks the next push to the target branch.
+      - name: Lint commit messages
+        env:
+          FROM: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TO: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npx commitlint --from "$FROM" --to "$TO"
+
+      # The work is the author's. No commit, pull request description or
+      # tracked file may credit an AI tool as author, co-author or generator.
+      - name: Check for AI attribution
+        env:
+          ATTRIBUTION_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          MERGE_REQUEST_DESCRIPTION: ${{ github.event.pull_request.body }}
+        run: bash .gitlab/scripts/check-attribution.sh
+
+      # Project voice over the markdown a change touches, its commit messages
+      # and the pull request description.
+      - name: Lint prose
+        env:
+          PROSE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          MERGE_REQUEST_DESCRIPTION: ${{ github.event.pull_request.body }}
+          PROSE_LINT_GLOB: '!.changeset/**'
+        run: |
+          bash .gitlab/scripts/install-vale.sh .vale/bin .vale/styles
+          bash .gitlab/scripts/lint-prose.sh
+
+      # Report-only, as in .gitlab-ci.yml. npm installs a missing peer, so
+      # Nuxt 2's end-of-life tree is merged into the production graph and every
+      # advisory in it is reported. A gate that can only be red teaches people
+      # to ignore it. It blocks again when this package builds for Nuxt 3.
+      - name: Audit shipped dependencies (report-only)
+        continue-on-error: true
+        run: npm run lint:audit
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: corepack enable && corepack prepare --activate
+
+      - run: npm ci
+
+      - run: npm run build
+
+      # Each exports entry is a build target whose source siroc takes from the
+      # matching subpath under src/. A missing one leaves the module resolving
+      # a path that is not there, which surfaces in a consumer's build rather
+      # than in this one, so every runtime path the module names is checked.
+      - name: Every runtime path was emitted
+        run: |
+          test -f dist/index.ssr.js
+          test -f dist/tailwind-preset.js
+          test -f dist/layouts/docs.vue
+          test -f dist/plugins/store.mjs
+          test -f dist/plugins/content-links.client.mjs
+          test -f dist/plugins/copy-buttons.client.mjs
+          test -f dist/plugins/color-mode-theme.client.mjs
+          test -f dist/utils/copy-button.mjs
+          test -d dist/assets/css
+          test -d dist/components
+          test "$(find dist/components -name '*.vue' | wc -l)" -ge 18
+
+      # siroc writes package.json back after a build, normalising its key
+      # order, so the committed order is siroc's output and a build leaves the
+      # tree clean. This fails if that stops holding, or if a later siroc
+      # changes a value rather than an order, instead of the change arriving
+      # silently in whatever commit next ran `git add -A` after a build.
+      - name: The build left tracked files alone
+        run: git diff --exit-code
+
+      # A published install reads the files allowlist and a link install does
+      # not, so this is the only check that proves the package a consumer
+      # downloads can install and resolve. The allowlist has already omitted a
+      # runtime plugin once, which installs cleanly and fails in that site's
+      # build.
+      - name: The tarball installs and resolves
+        run: |
+          npm pack
+          mkdir -p "$RUNNER_TEMP/pack-check"
+          mv ./*.tgz "$RUNNER_TEMP/pack-check/pkg.tgz"
+          cd "$RUNNER_TEMP/pack-check"
+          npm init -y > /dev/null
+          npm install ./pkg.tgz --legacy-peer-deps --no-audit --no-fund
+          node -e "require.resolve('@druxt/dui')"
+          node -e "require.resolve('@druxt/dui/tailwind-preset')"
+          test -f node_modules/@druxt/dui/dist/plugins/copy-buttons.client.mjs
+          test -f node_modules/@druxt/dui/dist/plugins/color-mode-theme.client.mjs
+          test -f node_modules/@druxt/dui/dist/plugins/content-links.client.mjs
+          test -f node_modules/@druxt/dui/dist/utils/copy-button.mjs
+          test -f node_modules/@druxt/dui/dist/layouts/docs.vue

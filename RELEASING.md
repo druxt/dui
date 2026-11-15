@@ -33,8 +33,10 @@ A release branch is named for its major, such as `0.x`. `baseBranch` in
 ## Not in place yet
 
 The workflow that runs the above. It lives on the GitHub side in every other
-Druxt repository, and this package has no GitHub mirror, so it arrives with
-one. Until then nothing publishes, and `release:check` is run by hand.
+Druxt repository, and the mirror now exists, but a publishing workflow needs an
+npm token on a package that has never been published, so it is a deliberate
+step of its own rather than part of setting the repository up. Until then
+nothing publishes, and `release:check` is run by hand.
 
 There are also no tests, so `scripts/release-check.mjs` is here without the
 test that covers it elsewhere.

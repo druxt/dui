@@ -55,11 +55,18 @@ npm run lint:prose
 ## Changes that reach npm
 
 While iterating against a consuming site, `npm run build:watch` rebuilds on
-any change under `src/`. It reruns the whole build rather than using siroc's
-own `--watch`, which starts a Rollup watcher over the bundle entrypoints only:
-the folder exports go through mkdist once at startup, so an edit to a
-component, layout, plugin or stylesheet left `dist/` holding the previous
-copy, and the consuming site read that copy.
+any change under `src/`. It is `scripts/watch.mjs` rather than siroc's own
+`--watch`, which starts a Rollup watcher over the bundle entrypoints only: the
+folder exports go through mkdist once at startup, so an edit to a component,
+layout, plugin or stylesheet left `dist/` holding the previous copy, and the
+consuming site read that copy. One build runs at a time, because two builds
+writing `dist/` at once can finish out of order and leave output from older
+source behind.
+
+`package.json` keeps the key order siroc writes, because siroc rewrites the
+manifest after every build. Reordering it by hand means the next build undoes
+the change, and the build job fails on the dirty tree rather than leaving the
+reorder to reach the next commit unnoticed.
 
 Add a changeset for anything a consuming site would notice:
 

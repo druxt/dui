@@ -6,8 +6,9 @@
 # visual or preview jobs to run against. They arrive with the Storybook build,
 # which is what will give this repository something to look at.
 #
-# There is no GitHub mirror yet, so lint:yaml covers this file alone and
-# actionlint is absent rather than pointed at nothing.
+# Nothing on the GitHub side lints a GitHub workflow before it is pushed, so a
+# broken one is discovered by it failing to run. lint:yaml runs actionlint over
+# .github/workflows/ here instead, at merge request time.
 #
 # Secret scanning is gitleaks, not GitLab's Security/Secret-Detection template.
 # That template is an Ultimate-tier feature: on a non-Ultimate instance the
@@ -128,11 +129,21 @@ lint:yaml:
   stage: lint
   image: python:3.12-slim
   interruptible: true
+  variables:
+    ACTIONLINT_VERSION: '1.7.12'
+    ACTIONLINT_SHA256: '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8'
   script:
     - section_start "yamllint" "Linting YAML"
     - pip install --quiet yamllint
-    - yamllint .gitlab-ci.yml
+    - yamllint .gitlab-ci.yml .github/workflows/
     - section_end "yamllint"
+    - section_start "actionlint" "Linting GitHub workflows"
+    - apt-get update -qq && apt-get install -y -qq curl > /dev/null
+    - curl -sSLo actionlint.tar.gz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+    - echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum -c -
+    - tar -xzf actionlint.tar.gz actionlint
+    - ./actionlint -color
+    - section_end "actionlint"
 
 # The merge request's own commits, not the whole history. This repository
 # squash-merges, so a prose title becomes the commit subject and breaks the
@@ -205,6 +216,14 @@ build:
     - test -d dist/assets/css && test -d dist/components
     - test "$(find dist/components -name '*.vue' | wc -l)" -ge 18
     - section_end "emitted"
+    # siroc writes package.json back after a build, normalising its key order,
+    # so the committed order is siroc's output and a build leaves the tree
+    # clean. This fails if that stops holding, or if a later siroc changes a
+    # value rather than an order, instead of the change arriving silently in
+    # whatever commit next ran `git add -A` after a build.
+    - section_start "clean" "Checking the build left tracked files alone"
+    - git diff --exit-code
+    - section_end "clean"
   artifacts:
     paths:
       - dist/

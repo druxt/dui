@@ -86,3 +86,9 @@ Segoe
 # StackBlitz panel explains it cannot set.
 tspan
 COEP
+
+# British spelling, as the rest of the repository uses, and the chokidar
+# environment variable scripts/watch.mjs reads.
+normalising
+Serialised
+USEPOLLING
