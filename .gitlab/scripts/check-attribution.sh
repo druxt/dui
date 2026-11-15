@@ -40,7 +40,7 @@ if ! git rev-parse --show-toplevel >/dev/null 2>&1; then
 fi
 
 # Tool names that must not appear as an author, co-author or generator.
-tools='claude|anthropic|copilot|chatgpt|openai|gemini|codex|cursor|aider|devin|windsurf|opencode|glm'
+tools='claude|anthropic|copilot|chatgpt|openai|gemini|codex|cursor|aider|devin|windsurf|opencode|glm|coderabbit'
 
 # Each alternative in pieces: the trailer key, the footer, the session link
 # and the noreply address are the four shapes seen in practice.
@@ -98,17 +98,29 @@ if [ "$files_only" -eq 0 ]; then
   description=""
   have_description=0
 
+  # The API answer is the only complete source. A parse that fails here has to
+  # fall through to the environment rather than record a description as read:
+  # this script runs without errexit, so a failed parser leaves `description`
+  # empty, and counting that as a successful read scans nothing and passes.
   if [ -n "${GITLAB_API_TOKEN:-}" ] && [ -n "${CI_API_V4_URL:-}" ] \
     && [ -n "${CI_PROJECT_ID:-}" ] && [ -n "${CI_MERGE_REQUEST_IID:-}" ]; then
     url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}"
     payload="$(curl -sSf --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" "$url" 2>/dev/null || true)"
     if [ -n "$payload" ]; then
       if command -v python3 >/dev/null 2>&1; then
-        description="$(printf '%s' "$payload" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("description") or "")')"
+        if description="$(printf '%s' "$payload" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("description") or "")')"; then
+          have_description=1
+        fi
       elif command -v node >/dev/null 2>&1; then
-        description="$(printf '%s' "$payload" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>process.stdout.write(JSON.parse(d).description||""))')"
+        if description="$(printf '%s' "$payload" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>process.stdout.write(JSON.parse(d).description||""))')"; then
+          have_description=1
+        fi
       fi
-      have_description=1
+      if [ "$have_description" -eq 0 ]; then
+        echo "[ERROR] the merge request API answered, but its description could not be read." >&2
+        echo "        Install python3 or node in this job's image, or unset GITLAB_API_TOKEN to read the description from the environment." >&2
+        exit 2
+      fi
     fi
   fi
 
@@ -119,8 +131,14 @@ if [ "$files_only" -eq 0 ]; then
     elif [ -n "${CI_MERGE_REQUEST_DESCRIPTION+x}" ]; then
       description="$CI_MERGE_REQUEST_DESCRIPTION"
       have_description=1
+      # GitLab cuts this variable at 2700 characters. An attribution footer
+      # sits at the end of a description, which is the part a cut removes, so
+      # scanning the surviving prefix is a check that cannot go red for the
+      # case it exists to catch.
       if [ "${#description}" -ge 2700 ]; then
-        echo "[WARN] CI_MERGE_REQUEST_DESCRIPTION is cut at 2700 characters; set GITLAB_API_TOKEN so the full description is read." >&2
+        echo "[ERROR] CI_MERGE_REQUEST_DESCRIPTION is cut at 2700 characters, so the end of the description was not scanned." >&2
+        echo "        Set a read-only GITLAB_API_TOKEN so the full description is fetched, or keep the description under 2700 characters." >&2
+        exit 2
       fi
     elif [ -n "${CI_MERGE_REQUEST_IID:-}" ]; then
       echo "[ERROR] merge request pipeline, but the description is not available." >&2

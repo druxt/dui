@@ -47,17 +47,13 @@ run = "npm run lint:knip"
 description = "Audit shipped dependencies"
 run = "npm run lint:audit"
 
-[tasks.test]
-description = "Run the unit tests"
-run = "npm test"
-
-[tasks."test:e2e"]
-description = "Run the end-to-end and visual tests (needs the example app running)"
-run = "npm run test:e2e"
+# No test tasks. This package has no test script yet, and a task that calls a
+# missing npm script fails on the script being missing rather than on anything
+# about the code. They arrive with the tests.
 
 [tasks.ci]
-description = "Everything the pipelines run, except the end-to-end suite"
-depends = ["lint", "test"]
+description = "Every check the pipelines run, and the build"
+depends = ["lint", "build"]
 
 # ---------------------------------------------------------------------------
 # Git hooks. Run once per clone. `npm install` does this for you via

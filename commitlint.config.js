@@ -11,7 +11,7 @@
 // run by the commit-msg hook. The pattern is assembled from pieces so that this
 // file passes its own scan.
 const tools =
-  'claude|anthropic|copilot|chatgpt|openai|gemini|codex|cursor|aider|devin|windsurf|opencode|glm'
+  'claude|anthropic|copilot|chatgpt|openai|gemini|codex|cursor|aider|devin|windsurf|opencode|glm|coderabbit'
 const attribution = new RegExp(
   [
     'co-authored' + `-by:.*(${tools})`,

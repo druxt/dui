@@ -14,7 +14,12 @@ title passes review and then breaks the next push to the target branch.
 ## How it was checked
 
 - [ ] `npm run lint` passes
-- [ ] `npm test` passes, and coverage did not drop
-- [ ] Visual baselines regenerated via the manual `visual:update` job, if the
-      rendering changed
+- [ ] `npm run build` passes, and `dist/` holds every runtime path the module
+      names
+- [ ] Checked against a consuming site, if the rendering changed
 - [ ] Nothing that resolves only on a private network reached a tracked file
+
+<!--
+No test or visual baseline items: this package has neither yet. They belong
+here once the suites exist, not before.
+-->

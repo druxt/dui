@@ -7,9 +7,10 @@
  * documentation.
  *
  * The rule is the shape of the host, not a list of known hostnames -
- * anything resolvable only inside a LAN. localhost, loopback and the
- * DDEV and Lando development domains are how the example runs locally,
- * so they are the exceptions.
+ * a private address range, a LAN suffix such as .local, or a name with no
+ * dot at all, which nothing outside a local search domain can resolve.
+ * localhost, loopback and the DDEV and Lando development domains are how
+ * the example runs locally, so they are the exceptions.
  *
  * Known gap: this matches host shape, so it catches `scheme://host/...`
  * and scp-style git remotes. It cannot catch an internal project or
@@ -33,8 +34,21 @@ const ALLOWED = [
   /\.lndo\.site$/i,
 ]
 
+/**
+ * A host with no dot in it, which is a name a resolver can only answer from a
+ * local search domain or a hosts file. Every public name carries a registry
+ * suffix, so `https://buildserver/project` is the shape of an intranet URL
+ * however it is spelled. Checked after the allowlist, which is what keeps
+ * `localhost` through.
+ *
+ * Colons exclude a bare IPv6 literal, which the patterns below judge on its
+ * own prefix rather than on having no dot.
+ */
+const SINGLE_LABEL = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i
+
 /** Hosts nobody outside the author's network can resolve. */
 const PRIVATE_HOST = [
+  SINGLE_LABEL,
   /^[a-z0-9-]+(\.[a-z0-9-]+)*\.(local|internal|lan|home|corp|intranet)$/i,
   /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
   /^192\.168\.\d{1,3}\.\d{1,3}$/,

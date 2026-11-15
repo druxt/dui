@@ -250,6 +250,10 @@ secret-detection:
   variables:
     GITLEAKS_VERSION: '8.30.1'
     GITLEAKS_SHA256: '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
+    # gitleaks reads the commits in the local checkout. GitLab clones 20 deep
+    # by default, so a credential added and later removed outside that window
+    # is not in the checkout to be found, and the job passes.
+    GIT_DEPTH: 0
   script:
     - section_start "gitleaks" "Scanning for committed secrets"
     - apk add --no-cache curl tar git > /dev/null

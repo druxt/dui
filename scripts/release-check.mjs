@@ -13,9 +13,10 @@
  * --dist-tag     print the npm dist-tag a stable publish of this version takes,
  *                and check nothing.
  *
- * It checks three things. A dependency specifier such as `link:` or
- * `workspace:` resolves on the author's machine and nowhere else. A version
- * at or below the published one either fails to publish or, as a snapshot,
+ * It checks three things. A dependency specifier such as `link:`,
+ * `workspace:` or `../helper` resolves on the author's machine and nowhere
+ * else. A version npm already holds cannot be published again, and one at or
+ * below the published release either fails to publish or, as a snapshot,
  * sorts below the release it was cut after. And a build that emits nothing
  * still exits zero, so a `files` entry has to exist and hold something.
  */
@@ -27,8 +28,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const FIELDS = ['dependencies', 'peerDependencies', 'optionalDependencies']
+// Schemes that name somewhere other than the registry. `git` carries any
+// transport after a plus, `git+file:` among them, so the transport is matched
+// rather than listed: listing them let `git+file:///home/me/helper` through.
 const UNPUBLISHABLE =
-  /^(workspace|link|file|portal|git|git\+ssh|git\+https|github|https?):/
+  /^(?:workspace|link|file|portal|github|https?):|^git(?:\+[a-z]+)?:/
+// A specifier that is a path rather than a range. npm accepts `../helper`,
+// `~/helper`, `/srv/helper` and `C:\helper` and resolves each against the
+// author's disk, with no scheme to match on. A semver range never begins this
+// way: `~1.2.3` has no slash after the tilde.
+const LOCAL_PATH = /^(?:\.{1,2}\/|~\/|\/|[A-Za-z]:[\\/])/
 const REGISTRY_TIMEOUT = 15000
 const VERSION = /^(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.-]+)?$/
 
@@ -103,7 +112,7 @@ export function checkManifest({ manifest, dir, record, files = true }) {
 
   for (const field of FIELDS) {
     for (const [dep, range] of Object.entries(manifest[field] || {})) {
-      if (UNPUBLISHABLE.test(range)) {
+      if (UNPUBLISHABLE.test(range) || LOCAL_PATH.test(range)) {
         problems.push(
           `${field}.${dep} is "${range}", which does not resolve from npm.`
         )
@@ -111,12 +120,19 @@ export function checkManifest({ manifest, dir, record, files = true }) {
     }
   }
 
-  if (record && !record.versions.includes(manifest.version)) {
-    const top = highestStableOfMajor(record.versions, parsed.core[0])
-    if (top && compareCores(parsed.core, top.core) <= 0) {
-      problems.push(
-        `${manifest.version} does not rise above the published ${top.version}.`
-      )
+  if (record) {
+    // A version npm already holds is immutable there: the publish fails. The
+    // comparison below cannot stand in for this, because a republish of the
+    // highest release does rise above every other one.
+    if (record.versions.includes(manifest.version)) {
+      problems.push(`${manifest.version} is already published.`)
+    } else {
+      const top = highestStableOfMajor(record.versions, parsed.core[0])
+      if (top && compareCores(parsed.core, top.core) <= 0) {
+        problems.push(
+          `${manifest.version} does not rise above the published ${top.version}.`
+        )
+      }
     }
   }
 

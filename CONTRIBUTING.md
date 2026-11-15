@@ -54,6 +54,13 @@ npm run lint:prose
 
 ## Changes that reach npm
 
+While iterating against a consuming site, `npm run build:watch` rebuilds on
+any change under `src/`. It reruns the whole build rather than using siroc's
+own `--watch`, which starts a Rollup watcher over the bundle entrypoints only:
+the folder exports go through mkdist once at startup, so an edit to a
+component, layout, plugin or stylesheet left `dist/` holding the previous
+copy, and the consuming site read that copy.
+
 Add a changeset for anything a consuming site would notice:
 
 ```bash

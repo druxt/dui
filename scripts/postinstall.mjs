@@ -18,16 +18,43 @@
  */
 
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+// Resolved so a symlinked or /private-prefixed checkout compares equal.
+const real = (target) => {
+  try {
+    return fs.realpathSync(target)
+  } catch {
+    return path.resolve(target)
+  }
+}
+
+let toplevel
 try {
-  execFileSync('git', ['rev-parse', '--git-dir'], { stdio: 'ignore' })
+  toplevel = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  }).trim()
 } catch {
-  // Not a git checkout: a published tarball, or a vendored copy. Nothing to do.
+  // Not a git checkout: a published tarball. Nothing to do.
+  process.exit(0)
+}
+
+// Git discovery walks upwards, so a copy of this package sitting inside
+// another repository reports that repository. Writing core.hooksPath there
+// would point it at a .githooks/ directory it does not have, disabling the
+// hooks it does. Only configure the checkout this package is the root of.
+if (real(toplevel) !== real(ROOT)) {
   process.exit(0)
 }
 
 try {
   execFileSync('git', ['config', 'core.hooksPath', '.githooks'], {
+    cwd: ROOT,
     stdio: 'ignore',
   })
   console.log('Git hooks enabled from .githooks/')
