@@ -145,9 +145,10 @@ lint:yaml:
     - ./actionlint -color
     - section_end "actionlint"
 
-# The merge request's own commits, not the whole history. This repository
-# squash-merges, so a prose title becomes the commit subject and breaks the
-# next push to the target branch.
+# The merge request's own commits, not the whole history, and its title. This
+# repository squash-merges, so the title becomes the merge commit's subject,
+# and a prose title breaks the next push to the target branch on a commit
+# message nobody can edit any more.
 lint:commit:
   extends: .node
   stage: lint
@@ -158,6 +159,11 @@ lint:commit:
     - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --depth 50
     - npm run lint:commit -- --from "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --to HEAD --verbose
     - section_end "commitlint"
+    # The script reads CI_MERGE_REQUEST_TITLE. GitLab's default squash message
+    # is the title unchanged, so no number is appended on this side.
+    - section_start "title" "Validating the merge request title"
+    - bash .gitlab/scripts/check-title.sh
+    - section_end "title"
 
 # The work is the author's. No commit, merge request description or tracked
 # file may credit an AI tool as author, co-author or generator.

@@ -80,5 +80,15 @@ npm run changeset
 the merge request title. This repository squash-merges, so the title becomes
 the commit subject and a prose one breaks the next push to the target branch.
 
+CI checks the title with the same commitlint configuration as the commits, and
+checks it as the subject it becomes rather than on its own. GitHub appends the
+pull request number to a squashed subject, so a title inside the 100 character
+header limit can still land outside it. To check a title before opening:
+
+```bash
+MERGE_REQUEST_TITLE="fix: a title to check" MERGE_REQUEST_NUMBER=12 \
+  npm run lint:title
+```
+
 No commit, merge request description or tracked file credits an AI tool as
 author, co-author or generator.

@@ -1,12 +1,13 @@
 ---
 name: Metadata
 
-# The description checks, on the events that change a description.
+# The title and description checks, on the events that change either field.
 #
-# `ci.yml` runs them too, but on the default pull_request activity types, which
-# do not include `edited`. A description edited after a green run is never
-# looked at again, and an attribution footer added there is exactly what the
-# attribution check exists to catch.
+# `ci.yml` runs the description checks too, but on the default pull_request
+# activity types, which do not include `edited`. A description edited after a
+# green run is never looked at again, and an attribution footer added there is
+# exactly what the attribution check exists to catch. The title is checked only
+# here, because a title exists nowhere in a push.
 #
 # A separate workflow rather than `edited` on ci.yml. Adding it there means
 # every bot that edits a description cancels the validation run in progress,
@@ -16,6 +17,11 @@ name: Metadata
 # `synchronize` is here although a push changes neither field: a required check
 # has to exist on the head commit, and a workflow firing only on `opened` and
 # `edited` leaves the newest commit with nothing to satisfy it.
+#
+# Both fields reach the scripts through the environment, never through
+# interpolation into a `run` block. A title is attacker-controlled text on a
+# pull request from a fork, and `${{ }}` substitution happens before the shell
+# sees the line.
 
 on:
   pull_request:
@@ -29,6 +35,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Squash-merge makes the pull request title the merge commit's subject, so
+  # an unconventional title passes review and then fails lint:commit on every
+  # later push to the target branch, on a commit message nobody can edit any
+  # more. The check runs the repository's own commitlint over the subject the
+  # title becomes, number included, rather than a second pattern that could
+  # drift from commitlint.config.js.
+  title:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commit SHAs, not tags. A tag is a mutable
+      # reference to code that runs with this repository's credentials.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          persist-credentials: false
+          # Only the working tree, because the title is not in the history.
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: corepack enable && corepack prepare --activate
+
+      - run: npm ci
+
+      - name: Lint the pull request title
+        env:
+          MERGE_REQUEST_TITLE: ${{ github.event.pull_request.title }}
+          # GitHub's squash subject is the title followed by " (#N)", which can
+          # carry a title that fits inside commitlint's length limit past it.
+          MERGE_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        run: bash .gitlab/scripts/check-title.sh
+
   description:
     runs-on: ubuntu-latest
     steps:
