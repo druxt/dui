@@ -44,10 +44,26 @@ const afterPush = (router, location, then) => {
   })
 }
 
-// getElementById, not a selector: an id from a heading slug can contain
-// characters a CSS selector would have to escape.
-const findHash = (hash) =>
-  document.getElementById(decodeURIComponent(hash.slice(1)))
+/*
+ * getElementById, not a selector: an id from a heading slug can contain
+ * characters a CSS selector would have to escape. A fragment that is not
+ * valid percent-encoding, such as `#100%`, is looked up as written, since a
+ * failed lookup must never stop the navigation it belongs to.
+ */
+const findHash = (hash) => {
+  const raw = hash.slice(1)
+  let id
+  try {
+    id = decodeURIComponent(raw)
+  } catch (error) {
+    id = raw
+  }
+  return document.getElementById(id)
+}
+
+// Only the latest request scrolls. A reader who picks another heading while
+// an earlier one is still being waited for has moved on from it.
+let request = 0
 
 /*
  * Scrolls to the element the hash names, retrying until it exists.
@@ -62,8 +78,10 @@ const findHash = (hash) =>
 const scrollToHash = (hash, stale = null) => {
   if (hash.length < 2) return
   const deadline = Date.now() + SETTLE_MS
+  const current = ++request
 
   const attempt = () => {
+    if (current !== request) return
     const target = findHash(hash)
     const late = Date.now() >= deadline
     if (target && (target !== stale || late)) {
