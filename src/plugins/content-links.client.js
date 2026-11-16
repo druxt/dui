@@ -21,22 +21,76 @@
 const SETTLE_MS = 1500
 const FRAME_MS = 50
 
-const scrollToHash = (hash) => {
-  const id = decodeURIComponent(hash.slice(1))
-  if (!id) return
+/*
+ * Navigates, and runs the continuation once the navigation has settled.
+ *
+ * Nuxt 2 replaces the router's push with its own, which passes an onComplete
+ * callback to vue-router. vue-router returns a promise only when it is given
+ * no callbacks, so push here returns undefined, and a promise chained off it
+ * threw a TypeError on every click. The continuation goes in as the callback
+ * instead, which also starts the retry below at the moment the navigation
+ * finishes rather than the moment it was asked for: a slow navigation would
+ * otherwise spend the whole retry window before the heading exists.
+ *
+ * A reader who follows a link, scrolls away and clicks it again is asking to
+ * go back to that heading, but the second click navigates nowhere. vue-router
+ * reports that to onAbort as NavigationDuplicated rather than to onComplete,
+ * so it scrolls from there. Any other abort means the navigation did not
+ * happen and nothing should move.
+ */
+const afterPush = (router, location, then) => {
+  router.push(location, then, (failure) => {
+    if (failure && failure.name === 'NavigationDuplicated') then()
+  })
+}
+
+/*
+ * getElementById, not a selector: an id from a heading slug can contain
+ * characters a CSS selector would have to escape. A fragment that is not
+ * valid percent-encoding, such as `#100%`, is looked up as written, since a
+ * failed lookup must never stop the navigation it belongs to.
+ */
+const findHash = (hash) => {
+  const raw = hash.slice(1)
+  let id
+  try {
+    id = decodeURIComponent(raw)
+  } catch (error) {
+    id = raw
+  }
+  return document.getElementById(id)
+}
+
+// Only the latest request scrolls. A reader who picks another heading while
+// an earlier one is still being waited for has moved on from it.
+let request = 0
+
+/*
+ * Scrolls to the element the hash names, retrying until it exists.
+ *
+ * `stale` is the element that matched before a navigation to another page.
+ * The navigation completes before the new page renders, so for a while the
+ * old page's element still answers to the id, and scrolling to it would end
+ * the retry before the new page's heading exists. It is skipped until the
+ * window closes, and taken then only if nothing replaced it, as with a
+ * heading in the layout both pages share.
+ */
+const scrollToHash = (hash, stale = null) => {
+  if (hash.length < 2) return
   const deadline = Date.now() + SETTLE_MS
+  const current = ++request
 
   const attempt = () => {
-    // getElementById, not a selector: an id from a heading slug can contain
-    // characters a CSS selector would have to escape.
-    const target = document.getElementById(id)
-    if (target) {
+    if (current !== request) return
+    const target = findHash(hash)
+    const late = Date.now() >= deadline
+    if (target && (target !== stale || late)) {
       // The heading's own scroll-margin-top clears the sticky header, and
       // `scroll-behavior: smooth` on the document makes this glide.
       target.scrollIntoView()
       return
     }
-    if (Date.now() < deadline) setTimeout(attempt, FRAME_MS)
+    if (!late) setTimeout(attempt, FRAME_MS)
   }
 
   attempt()
@@ -72,8 +126,9 @@ export default ({ app }) => {
       if (href === '#') return
       event.preventDefault()
       const { path, query } = app.router.currentRoute
-      app.router.push({ path, query, hash: href }).catch(() => {})
-      scrollToHash(href)
+      afterPush(app.router, { path, query, hash: href }, () =>
+        scrollToHash(href)
+      )
       return
     }
 
@@ -98,11 +153,9 @@ export default ({ app }) => {
       return
     }
 
-    app.router
-      .push(path)
-      .then(() => {
-        if (hash) scrollToHash(hash)
-      })
-      .catch(() => {})
+    const stale = hash.length > 1 ? findHash(hash) : null
+    afterPush(app.router, path, () => {
+      if (hash) scrollToHash(hash, stale)
+    })
   })
 }
