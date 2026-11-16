@@ -44,22 +44,35 @@ const afterPush = (router, location, then) => {
   })
 }
 
-const scrollToHash = (hash) => {
-  const id = decodeURIComponent(hash.slice(1))
-  if (!id) return
+// getElementById, not a selector: an id from a heading slug can contain
+// characters a CSS selector would have to escape.
+const findHash = (hash) =>
+  document.getElementById(decodeURIComponent(hash.slice(1)))
+
+/*
+ * Scrolls to the element the hash names, retrying until it exists.
+ *
+ * `stale` is the element that matched before a navigation to another page.
+ * The navigation completes before the new page renders, so for a while the
+ * old page's element still answers to the id, and scrolling to it would end
+ * the retry before the new page's heading exists. It is skipped until the
+ * window closes, and taken then only if nothing replaced it, as with a
+ * heading in the layout both pages share.
+ */
+const scrollToHash = (hash, stale = null) => {
+  if (hash.length < 2) return
   const deadline = Date.now() + SETTLE_MS
 
   const attempt = () => {
-    // getElementById, not a selector: an id from a heading slug can contain
-    // characters a CSS selector would have to escape.
-    const target = document.getElementById(id)
-    if (target) {
+    const target = findHash(hash)
+    const late = Date.now() >= deadline
+    if (target && (target !== stale || late)) {
       // The heading's own scroll-margin-top clears the sticky header, and
       // `scroll-behavior: smooth` on the document makes this glide.
       target.scrollIntoView()
       return
     }
-    if (Date.now() < deadline) setTimeout(attempt, FRAME_MS)
+    if (!late) setTimeout(attempt, FRAME_MS)
   }
 
   attempt()
@@ -122,8 +135,9 @@ export default ({ app }) => {
       return
     }
 
+    const stale = hash.length > 1 ? findHash(hash) : null
     afterPush(app.router, path, () => {
-      if (hash) scrollToHash(hash)
+      if (hash) scrollToHash(hash, stale)
     })
   })
 }
