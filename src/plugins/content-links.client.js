@@ -22,17 +22,26 @@ const SETTLE_MS = 1500
 const FRAME_MS = 50
 
 /*
+ * Navigates, and runs the continuation once the navigation has settled.
+ *
  * Nuxt 2 replaces the router's push with its own, which passes an onComplete
  * callback to vue-router. vue-router returns a promise only when it is given
- * no callbacks, so push here returns undefined, and the promise chain this
- * code used to hang off it threw a TypeError on every click. The navigation
- * had already happened by then, so the page still moved and only the work
- * queued after it was lost.
+ * no callbacks, so push here returns undefined, and a promise chained off it
+ * threw a TypeError on every click. The continuation goes in as the callback
+ * instead, which also starts the retry below at the moment the navigation
+ * finishes rather than the moment it was asked for: a slow navigation would
+ * otherwise spend the whole retry window before the heading exists.
+ *
+ * A reader who follows a link, scrolls away and clicks it again is asking to
+ * go back to that heading, but the second click navigates nowhere. vue-router
+ * reports that to onAbort as NavigationDuplicated rather than to onComplete,
+ * so it scrolls from there. Any other abort means the navigation did not
+ * happen and nothing should move.
  */
-const afterPush = (pushed, then) => {
-  if (pushed && typeof pushed.then === 'function')
-    pushed.then(then).catch(() => {})
-  else then()
+const afterPush = (router, location, then) => {
+  router.push(location, then, (failure) => {
+    if (failure && failure.name === 'NavigationDuplicated') then()
+  })
 }
 
 const scrollToHash = (hash) => {
@@ -86,7 +95,7 @@ export default ({ app }) => {
       if (href === '#') return
       event.preventDefault()
       const { path, query } = app.router.currentRoute
-      afterPush(app.router.push({ path, query, hash: href }), () =>
+      afterPush(app.router, { path, query, hash: href }, () =>
         scrollToHash(href)
       )
       return
@@ -113,7 +122,7 @@ export default ({ app }) => {
       return
     }
 
-    afterPush(app.router.push(path), () => {
+    afterPush(app.router, path, () => {
       if (hash) scrollToHash(hash)
     })
   })
