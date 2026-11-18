@@ -373,26 +373,35 @@ jobs:
           TAG: ${{ needs.pack.outputs.tag }}
           DIST_TAG: ${{ needs.pack.outputs.dist-tag }}
         run: |
+          name="${TAG%@*}"
+          version="${TAG##*@}"
+          # Whether this version ends up holding npm's `latest`. GitHub's own
+          # latest marker follows it, and DIST_TAG cannot answer it: that was
+          # chosen before this job waited for its reviewer, and a newer major
+          # can have published in the meantime.
+          latest=false
           if [ -n "$(npm view "$TAG" version 2>/dev/null)" ]; then
             state="already on npm"
+            # Nothing is published on this path, so npm's own check never runs.
+            # Ask the registry which version holds `latest` now. An unreadable
+            # registry leaves the marker off, which is the correctable mistake.
+            [ "$(npm view "$name" dist-tags.latest 2>/dev/null)" = "$version" ] && latest=true
           else
-            # `latest` publishes without a tag so npm applies it implicitly,
-            # and refuses when a higher version already holds it. The tag was
-            # chosen before this job waited for its reviewer, and a newer major
-            # can have published in that time. An explicit --tag would skip
-            # that check and move `latest` back to the older version.
             if [ "$DIST_TAG" = latest ]; then
+              # No tag, so npm applies `latest` itself and refuses when a
+              # higher version already holds it. An explicit --tag would skip
+              # that check and move `latest` back to the older version. Past
+              # this line npm has applied it, or the publish failed the job.
               npm publish ./release-package/*.tgz --access public
+              latest=true
             else
               npm publish ./release-package/*.tgz --access public --tag "$DIST_TAG"
             fi
             state="published"
           fi
           if ! gh release view "$TAG" > /dev/null 2>&1; then
-            # Only a release npm calls latest is GitHub's latest too.
-            flags=(--latest=false)
-            [ "$DIST_TAG" = latest ] && flags=(--latest)
+            flags=(--latest="$latest")
             [ "$DIST_TAG" = next ] && flags+=(--prerelease)
             gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file release-package/notes.md "${flags[@]}"
           fi
-          echo "- $TAG ($state, \`$DIST_TAG\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- $TAG ($state, \`$DIST_TAG\`, latest=$latest)" >> "$GITHUB_STEP_SUMMARY"
