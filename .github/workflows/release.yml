@@ -271,7 +271,14 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           tag="$(node -p "const p = require('./package.json'); p.name + '@' + p.version")"
-          if [ -n "$(node scripts/release-check.mjs --unpublished)" ]; then
+          # An unanswered registry must not read as "npm has it". That answer
+          # sends the check below into --offline, which drops the rule keeping
+          # a version above the published top of its major.
+          if ! unpublished="$(node scripts/release-check.mjs --unpublished)"; then
+            echo "Could not ask npm what it has for $tag." >&2
+            exit 1
+          fi
+          if [ -n "$unpublished" ]; then
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
             echo "$tag is not on npm yet."
           elif ! gh release view "$tag" > /dev/null 2>&1; then
@@ -382,17 +389,26 @@ jobs:
           latest=false
           if [ -n "$(npm view "$TAG" version 2>/dev/null)" ]; then
             state="already on npm"
-            # Nothing is published on this path, so npm's own check never runs.
-            # Ask the registry which version holds `latest` now. An unreadable
-            # registry leaves the marker off, which is the correctable mistake.
-            [ "$(npm view "$name" dist-tags.latest 2>/dev/null)" = "$version" ] && latest=true
+            # Nothing is published on this path, so npm's own check never
+            # runs. Ask the registry which version holds `latest` now, and
+            # stop if it will not say: the step below creates the Release, and
+            # a Release that exists is never looked at again, so a guess here
+            # would stick. Stopping leaves the rerun able to get it right.
+            if ! npm_latest="$(npm view "$name" dist-tags.latest 2>/dev/null)"; then
+              echo "Could not read which version holds npm's latest for $name." >&2
+              exit 1
+            fi
+            [ "$npm_latest" = "$version" ] && latest=true
           else
             if [ "$DIST_TAG" = latest ]; then
               # No tag, so npm applies `latest` itself and refuses when a
               # higher version already holds it. An explicit --tag would skip
               # that check and move `latest` back to the older version. Past
               # this line npm has applied it, or the publish failed the job.
-              npm publish ./release-package/*.tgz --access public
+              if ! npm publish ./release-package/*.tgz --access public; then
+                echo "::error::The publish failed. If npm refused to apply \`latest\` implicitly, a higher version took it while this job waited for its reviewer. Re-run all jobs rather than only the failed ones, so the pack job chooses the dist-tag again: rerunning the failed job alone reuses the tag that was just refused."
+                exit 1
+              fi
               latest=true
             else
               npm publish ./release-package/*.tgz --access public --tag "$DIST_TAG"

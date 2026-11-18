@@ -40,6 +40,19 @@ A release branch is named for its major, such as `0.x`. `baseBranch` in
 - **`npm pack` builds first**, through `prepack`, so a tarball is never packed
   from a stale `dist/`, or from none at all.
 
+## Rerunning a release
+
+Rerun **all** jobs, not only the failed one. The `pack` job chooses the
+dist-tag, so a rerun of the failed job reuses the tag that just failed. npm
+declines to apply `latest` to a version a higher one has overtaken, which
+happens when a newer major publishes while the release waits for its reviewer,
+and only a full rerun lets `pack` read the registry again and take that major's
+own tag.
+
+A version counts as released once npm has it and its GitHub Release exists. A
+run that stops between the two leaves the version on npm, and the rerun skips
+the publish and writes the Release that is missing.
+
 ## One-time setup
 
 Publishing uses npm trusted publishing, so there is no npm token to store or
