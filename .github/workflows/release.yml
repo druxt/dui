@@ -60,6 +60,7 @@ jobs:
   snapshot:
     if: ${{ !github.event.repository.fork }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     outputs:
@@ -141,6 +142,7 @@ jobs:
       vars.NPM_PUBLISH == 'true' &&
       needs.snapshot.outputs.version != ''
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       id-token: write
     steps:
@@ -175,6 +177,7 @@ jobs:
   version:
     if: ${{ !github.event.repository.fork && github.event_name == 'push' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
@@ -240,6 +243,7 @@ jobs:
     needs: version
     if: needs.version.outputs.pending == 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     outputs:
@@ -328,6 +332,7 @@ jobs:
     needs: pack
     if: needs.pack.outputs.tag != '' && vars.NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Pauses for a required reviewer before anything reaches npm.
     environment: release
     permissions:
