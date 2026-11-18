@@ -276,6 +276,7 @@ jobs:
             echo "$tag is not on npm yet."
           elif ! gh release view "$tag" > /dev/null 2>&1; then
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "on-npm=true" >> "$GITHUB_OUTPUT"
             echo "$tag is on npm, but has no GitHub Release yet."
           else
             echo "$tag is already released."
@@ -292,9 +293,20 @@ jobs:
         if: steps.unreleased.outputs.tag != ''
         run: npm run build
 
+      # When npm already has the version and only the GitHub Release is
+      # missing, the registry rules have nothing left to decide, and the rule
+      # against republishing a version would reject this one for being exactly
+      # what it is. The rest of the checks still run.
       - name: Check the release
         if: steps.unreleased.outputs.tag != ''
-        run: npm run release:check
+        env:
+          ON_NPM: ${{ steps.unreleased.outputs.on-npm }}
+        run: |
+          if [ "$ON_NPM" = true ]; then
+            npm run release:check -- --offline
+          else
+            npm run release:check
+          fi
 
       # The tarball and the release notes travel together, so the publishing
       # job needs nothing from the repository.
@@ -364,7 +376,16 @@ jobs:
           if [ -n "$(npm view "$TAG" version 2>/dev/null)" ]; then
             state="already on npm"
           else
-            npm publish ./release-package/*.tgz --access public --tag "$DIST_TAG"
+            # `latest` publishes without a tag so npm applies it implicitly,
+            # and refuses when a higher version already holds it. The tag was
+            # chosen before this job waited for its reviewer, and a newer major
+            # can have published in that time. An explicit --tag would skip
+            # that check and move `latest` back to the older version.
+            if [ "$DIST_TAG" = latest ]; then
+              npm publish ./release-package/*.tgz --access public
+            else
+              npm publish ./release-package/*.tgz --access public --tag "$DIST_TAG"
+            fi
             state="published"
           fi
           if ! gh release view "$TAG" > /dev/null 2>&1; then
