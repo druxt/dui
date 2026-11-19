@@ -69,20 +69,25 @@ jobs:
           TO: ${{ github.event.pull_request.head.sha || github.sha }}
         run: npx commitlint --from "$FROM" --to "$TO"
 
-      # The work is the author's. No commit, pull request description or
-      # tracked file may credit an AI tool as author, co-author or generator.
+      # The work is the author's. No commit or tracked file may credit an AI
+      # tool as author, co-author or generator.
+      #
+      # The description is not read here, and metadata.yml checks it instead.
+      # A workflow receives the description as it stood when its event fired,
+      # so an edit after a push leaves this job holding text the pull request
+      # no longer shows: it fails over wording nobody can find, and a rerun
+      # replays the same stale payload. metadata.yml runs on `edited` as well,
+      # so the description is still checked, against what it actually says.
       - name: Check for AI attribution
         env:
           ATTRIBUTION_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          MERGE_REQUEST_DESCRIPTION: ${{ github.event.pull_request.body }}
         run: bash .gitlab/scripts/check-attribution.sh
 
-      # Project voice over the markdown a change touches, its commit messages
-      # and the pull request description.
+      # Project voice over the markdown a change touches and its commit
+      # messages. The description belongs to metadata.yml, as above.
       - name: Lint prose
         env:
           PROSE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          MERGE_REQUEST_DESCRIPTION: ${{ github.event.pull_request.body }}
           PROSE_LINT_GLOB: '!.changeset/**'
         run: |
           bash .gitlab/scripts/install-vale.sh .vale/bin .vale/styles
