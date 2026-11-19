@@ -336,6 +336,20 @@ module.exports = function dui(moduleOptions) {
   })
 
   /*
+   * Fenced mermaid blocks, rendered to SVG. Client only, because mermaid
+   * measures text to lay a diagram out and so needs a document.
+   *
+   * The theme's `.docs-diagram` rules style the markup this plugin creates.
+   * Without it a fenced block stays the code block it was authored as, and
+   * that part of the stylesheet applies to nothing.
+   */
+  this.addPlugin({
+    src: join(__dirname, 'plugins/mermaid.client.mjs'),
+    fileName: 'dui/mermaid.client.js',
+    mode: 'client',
+  })
+
+  /*
    * The colour mode control only does anything with this: the Nuxt 2 release
    * of @nuxtjs/color-mode toggles a class, and daisyUI reads a data-theme
    * attribute.
