@@ -44,6 +44,22 @@ export const summaryOf = (page) => {
 }
 
 /*
+ * Every HTML comment removed, and then removed again until the text stops
+ * changing. One pass is not enough: `<!--` inside a comment leaves a second
+ * opener behind when the comment around it goes, and a single pass would
+ * print that opener into the output.
+ */
+const withoutComments = (markdown) => {
+  let text = markdown
+  let previous
+  do {
+    previous = text
+    text = text.replace(/<!--[\s\S]*?-->\n?/g, '')
+  } while (text !== previous)
+  return text
+}
+
+/*
  * The page's text with the furniture taken out: HTML comments, which carry
  * notes to linters and to editors rather than to a reader, and a line that is
  * nothing but badges, which says only that some service rendered an image.
@@ -52,8 +68,7 @@ export const summaryOf = (page) => {
  * of this file is as entitled to it as a reader of the page.
  */
 const plain = (markdown) =>
-  markdown
-    .replace(/<!--[\s\S]*?-->\n?/g, '')
+  withoutComments(markdown)
     .split('\n')
     .filter(
       (line) => !/^\s*(\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)\s*)+$/.test(line)
