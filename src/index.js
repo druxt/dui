@@ -1,8 +1,17 @@
 const { basename, dirname, join, resolve } = require('path')
+const { pathToFileURL } = require('url')
+
+/*
+ * A dynamic import the bundler leaves alone. Written literally it is rewritten
+ * to `require` when this module is bundled as CommonJS, and `require` cannot
+ * load an ES module.
+ */
+const importModule = new Function('url', 'return import(url)')
 const {
   copyFileSync,
   existsSync,
   mkdirSync,
+  promises,
   readdirSync,
   readFileSync,
   writeFileSync,
@@ -136,6 +145,14 @@ module.exports = function dui(moduleOptions) {
   const originBySlug = new Map()
   const slugByOrigin = new Map()
 
+  /*
+   * The staged pages, in the order they were staged, for the SEO files
+   * written at the end of a build. The content module reads the same files,
+   * but it is a runtime concern and nothing it holds is reachable from here
+   * once generation has finished.
+   */
+  const staged = []
+
   const stage = (source, slug) => {
     let text = readFileSync(source, 'utf8')
     /*
@@ -149,6 +166,7 @@ module.exports = function dui(moduleOptions) {
     writeFileSync(join(stageDir, `${slug}.md`), text)
     originBySlug.set(slug, source)
     slugByOrigin.set(source, slug)
+    staged.push({ slug, markdown: text })
   }
 
   mkdirSync(stageDir, { recursive: true })
@@ -189,6 +207,84 @@ module.exports = function dui(moduleOptions) {
       rel: 'icon',
       type: 'image/svg+xml',
       href: iconHref,
+    })
+  }
+
+  /*
+   * The files a crawler and an assistant read: sitemap.xml, llms.txt,
+   * llms-full.txt, and robots.txt where this site is the root of its domain.
+   *
+   * Written after generation, into the output directory, rather than into
+   * static/. A file in static/ is copied into the repository's own tree on
+   * every dev run, and these describe a published site rather than a
+   * checkout.
+   *
+   * `siteUrl` is required and has no default. It could be guessed from
+   * GITHUB_REPOSITORY, but a guess is wrong the moment a custom domain is
+   * set, and a sitemap full of addresses that redirect is worse than no
+   * sitemap at all.
+   */
+  if (options.siteUrl) {
+    this.nuxt.hook('generate:done', async (generator) => {
+      /*
+       * Loaded here rather than required at the top of this file. The
+       * builders are published as ESM beside the other runtime files, and
+       * this module is published as a CommonJS bundle, which cannot require
+       * one. The import is built at run time because the bundler rewrites a
+       * literal `import()` in a CommonJS build back into `require`, which is
+       * the call that cannot load it.
+       */
+      const { buildLlmsFullTxt, buildLlmsTxt, buildRobots, buildSitemap } =
+        await importModule(pathToFileURL(join(__dirname, 'utils/seo.mjs')).href)
+
+      const base = (this.options.router || {}).base || '/'
+      const runtime = this.options.publicRuntimeConfig || {}
+      const site = {
+        origin: options.siteUrl,
+        base,
+        name: runtime.docsTitle || options.name || basename(repoRoot),
+        summary: runtime.docsTagline || '',
+        sections: options.llmsSections || [],
+        lastmod: new Date().toISOString().slice(0, 10),
+      }
+
+      /*
+       * Reading order, so llms.txt reads the way the site does. The site
+       * already declares it for the sidebar; anything left out follows, so
+       * adding a page cannot drop it from the index.
+       */
+      const order = options.order || []
+      const rank = (page) => {
+        if (page.slug === 'index') return -1
+        const at = order.indexOf(page.slug)
+        return at === -1 ? order.length : at
+      }
+      const pages = [...staged].sort(
+        (a, b) => rank(a) - rank(b) || a.slug.localeCompare(b.slug)
+      )
+
+      const dir = generator.options.generate.dir
+      const write = (name, contents) =>
+        promises.writeFile(join(dir, name), contents)
+
+      await write('sitemap.xml', buildSitemap(pages, site))
+      await write('llms.txt', buildLlmsTxt(pages, site))
+      await write('llms-full.txt', buildLlmsFullTxt(pages, site))
+      if (base === '/') {
+        await write('robots.txt', buildRobots(site, options.sitemaps || []))
+      }
+    })
+
+    /*
+     * llmstxt.org discovery: the plain-text index that describes this page.
+     */
+    this.options.head = this.options.head || {}
+    this.options.head.link = this.options.head.link || []
+    this.options.head.link.push({
+      hid: 'llms',
+      rel: 'describedby',
+      type: 'text/plain',
+      href: `${(this.options.router || {}).base || '/'}llms.txt`,
     })
   }
 
