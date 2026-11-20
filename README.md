@@ -73,7 +73,26 @@ a sitemap of addresses that redirect is worse than no sitemap.
 | `siteUrl`      | The origin the site is served from. Nothing below is written without it.                                              |
 | `order`        | The page slugs in reading order, so `llms.txt` reads the way the site does. Anything left out follows alphabetically. |
 | `sitemaps`     | Further sitemap URLs to name in `robots.txt`.                                                                         |
-| `llmsSections` | Further `{ title, links }` sections for `llms.txt`.                                                                   |
+| `llmsSections` | Further sections for `llms.txt`, each `{ title, links }`. See below.                                                  |
+
+A section of `llmsSections` is a title and its links, and a link is
+`{ text, href, notes }` with `notes` optional. This is for what a site knows
+and a page cannot say: an index site listing the sites it points at, say.
+
+```js
+llmsSections: [
+  {
+    title: 'Modules',
+    links: [
+      {
+        text: 'Druxt Canvas',
+        href: 'https://contrib.druxtjs.org/druxt-canvas/',
+        notes: 'Renders a Drupal Canvas page in Nuxt.',
+      },
+    ],
+  },
+]
+```
 
 `robots.txt` is written only when the site is served from `/`. A crawler reads
 the one at a domain's root and no other, so a file published under a project

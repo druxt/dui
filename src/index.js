@@ -150,8 +150,13 @@ module.exports = function dui(moduleOptions) {
    * written at the end of a build. The content module reads the same files,
    * but it is a runtime concern and nothing it holds is reachable from here
    * once generation has finished.
+   *
+   * Keyed by slug, because two sources can stage the same page: a repository
+   * with both a README and `docs/index.md` writes `index.md` twice, and the
+   * second write is the page the site serves. A list would describe the
+   * first one as well, under the same address.
    */
-  const staged = []
+  const staged = new Map()
 
   const stage = (source, slug) => {
     let text = readFileSync(source, 'utf8')
@@ -166,7 +171,7 @@ module.exports = function dui(moduleOptions) {
     writeFileSync(join(stageDir, `${slug}.md`), text)
     originBySlug.set(slug, source)
     slugByOrigin.set(source, slug)
-    staged.push({ slug, markdown: text })
+    staged.set(slug, { slug, markdown: text })
   }
 
   mkdirSync(stageDir, { recursive: true })
@@ -245,8 +250,13 @@ module.exports = function dui(moduleOptions) {
         name: runtime.docsTitle || options.name || basename(repoRoot),
         summary: runtime.docsTagline || '',
         sections: options.llmsSections || [],
-        lastmod: new Date().toISOString().slice(0, 10),
       }
+      /*
+       * No `lastmod`. The sitemap protocol asks for the date each page last
+       * changed, and the only date a build knows is its own: a rebuild of
+       * untouched documentation would report every page as modified, which
+       * is the one thing the field is read for. The builder omits it.
+       */
 
       /*
        * Reading order, so llms.txt reads the way the site does. The site
@@ -259,7 +269,7 @@ module.exports = function dui(moduleOptions) {
         const at = order.indexOf(page.slug)
         return at === -1 ? order.length : at
       }
-      const pages = [...staged].sort(
+      const pages = [...staged.values()].sort(
         (a, b) => rank(a) - rank(b) || a.slug.localeCompare(b.slug)
       )
 
@@ -271,7 +281,19 @@ module.exports = function dui(moduleOptions) {
       await write('llms.txt', buildLlmsTxt(pages, site))
       await write('llms-full.txt', buildLlmsFullTxt(pages, site))
       if (base === '/') {
-        await write('robots.txt', buildRobots(site, options.sitemaps || []))
+        /*
+         * A site's own static/robots.txt has already been copied into the
+         * output by now, so it is read back and kept: its rules are the
+         * site's, and only the sitemaps are added to them.
+         */
+        const path = join(dir, 'robots.txt')
+        const existing = existsSync(path)
+          ? await promises.readFile(path, 'utf8')
+          : ''
+        await write(
+          'robots.txt',
+          buildRobots(site, options.sitemaps || [], existing)
+        )
       }
     })
 
@@ -377,7 +399,9 @@ module.exports = function dui(moduleOptions) {
          */
         const slug = slugByOrigin.get(target)
         if (slug) {
-          node.props.href = `${base}${slug === 'index' ? '' : slug}${suffix}`
+          node.props.href = `${base}${
+            slug === 'index' ? '' : encodeURIComponent(slug)
+          }${suffix}`
           return
         }
 

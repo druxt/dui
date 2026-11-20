@@ -76,9 +76,22 @@ const plain = (markdown) =>
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
 
+/**
+ * A slug as a URL path segment.
+ *
+ * A slug is a documentation file's name without its extension, and a file
+ * name may hold characters a URL reads as punctuation: `#` would start a
+ * fragment, `?` a query, a space is not allowed in a URL at all. A slug of
+ * the usual shape passes through untouched, since none of its characters are
+ * encoded.
+ */
+export const pathSegment = (slug) => encodeURIComponent(slug)
+
 /** Where a page is served, as an absolute URL. */
 export const urlOf = (page, { origin, base }) =>
-  `${origin.replace(/\/$/, '')}${base}${page.slug === 'index' ? '' : page.slug}`
+  `${origin.replace(/\/$/, '')}${base}${
+    page.slug === 'index' ? '' : pathSegment(page.slug)
+  }`
 
 /** XML text content, with the five characters XML reserves escaped. */
 const xml = (text) =>
@@ -211,11 +224,32 @@ export const buildLlmsFullTxt = (pages, site) => {
  * @param {object} site - `origin` and `base`.
  * @param {Array<string>} sitemaps - Further absolute sitemap URLs to list,
  *   which is how a root site points at the sites served beneath it.
+ * @param {string} [existing] - A robots.txt the site published itself, which
+ *   is kept and has the sitemaps added to it.
  * @returns {string} The robots document.
  */
-export const buildRobots = (site, sitemaps = []) => {
+export const buildRobots = (site, sitemaps = [], existing = '') => {
   const own = `${site.origin.replace(/\/$/, '')}${site.base}sitemap.xml`
   const all = [own, ...sitemaps.filter((url) => url && url !== own)]
+
+  /*
+   * A site that publishes its own robots.txt keeps it, and the sitemaps are
+   * added to it. `Sitemap` is a field of the file rather than of a group, so
+   * it reads the same wherever it sits, and a site's own `Disallow` rules
+   * matter more than the shape of this file.
+   */
+  if (existing.trim()) {
+    const kept = existing.replace(/\n+$/, '')
+    const already = (url) =>
+      new RegExp(
+        `^\\s*sitemap\\s*:\\s*${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`,
+        'im'
+      ).test(kept)
+    const missing = all.filter((url) => !already(url))
+    if (!missing.length) return `${kept}\n`
+    return [kept, '', ...missing.map((url) => `Sitemap: ${url}`), ''].join('\n')
+  }
+
   return [
     'User-agent: *',
     'Allow: /',
