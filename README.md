@@ -94,6 +94,49 @@ llmsSections: [
 ]
 ```
 
+### The card a link shows
+
+Set `siteUrl` and the build also writes the metadata an unfurler reads: a
+`description`, the Open Graph title, description, URL and image, and the one
+Twitter tag that makes the image render wide. Each carries a `hid`, so a page
+can override one.
+
+The image is the repository's own social preview where it has one. GitHub
+holds that picture and answers for it through its API, so the workflow that
+builds the site makes the call and passes the address in `DOCS_OG_IMAGE`:
+
+```yaml
+- id: card
+  continue-on-error: true
+  env:
+    GH_TOKEN: ${{ github.token }}
+  run: |
+    url=$(gh api graphql -f query='
+      query($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+          usesCustomOpenGraphImage
+          openGraphImageUrl
+        }
+      }' -F owner=${{ github.repository_owner }}       -F name=${{ github.event.repository.name }}       --jq 'if .data.repository.usesCustomOpenGraphImage
+            then .data.repository.openGraphImageUrl else "" end' || true)
+    echo "DOCS_OG_IMAGE=$url" >> "$GITHUB_ENV"
+```
+
+`usesCustomOpenGraphImage` is the check. Where no card has been uploaded,
+`openGraphImageUrl` still answers, with GitHub's own generated picture of a
+repository, so the boolean is what says whether a real card exists. A
+repository without one passes nothing and the site publishes the placeholder
+card below instead.
+
+| Option    | What it does                                                                       |
+| --------- | ---------------------------------------------------------------------------------- |
+| `ogImage` | An absolute URL for the card, which wins over `DOCS_OG_IMAGE` and the placeholder. |
+
+The placeholder is published with this package and copied into the output,
+not into `static/`, so it leaves nothing in the repository to ignore. It is
+generic: it names the framework, since a card naming the module would mean
+rendering text at build time.
+
 `robots.txt` is written only when the site is served from `/`. A crawler reads
 the one at a domain's root and no other, so a file published under a project
 path would be read by nobody. That makes a root site the only place the sites

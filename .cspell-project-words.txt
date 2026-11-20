@@ -93,6 +93,7 @@ Stackblitz
 stackblitz
 tailwindcss
 tspan
+unfurler
 unparseable
 urlset
 USEPOLLING

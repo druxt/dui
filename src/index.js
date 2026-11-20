@@ -216,6 +216,66 @@ module.exports = function dui(moduleOptions) {
   }
 
   /*
+   * What a link to this site shows when it is unfurled: a description and a
+   * card, in Open Graph and in the one Twitter tag that makes the card wide.
+   *
+   * The card is the repository's own social preview where it has one. GitHub
+   * holds that image and answers for it through the API, so the workflow that
+   * builds this site makes the call, with the token it already has, and
+   * passes the address in. A build then needs neither a token nor a network,
+   * and a repository with no card of its own passes nothing.
+   *
+   * Nothing falls back to the address GitHub answers with for a repository
+   * that has no card. That is GitHub's own generated picture of a repository,
+   * an owner avatar and a language bar, which says GitHub rather than Druxt.
+   * A placeholder published with this package is used instead.
+   */
+  const runtimeConfig = this.options.publicRuntimeConfig || {}
+  const siteName = runtimeConfig.docsTitle || options.name || basename(repoRoot)
+  const tagline = runtimeConfig.docsTagline || ''
+
+  this.options.head = this.options.head || {}
+  this.options.head.meta = this.options.head.meta || []
+  const meta = (hid, name, content) => {
+    if (!content) return
+    const key = name.startsWith('og:') ? 'property' : 'name'
+    this.options.head.meta.push({ hid, [key]: name, content })
+  }
+
+  meta('description', 'description', tagline)
+
+  /*
+   * The rest is absolute by definition: an unfurler reads the page from
+   * somewhere else and cannot resolve a relative address. `siteUrl` is what
+   * says where this site is published, so without it there is nothing to
+   * write.
+   */
+  const placeholder = 'social-placeholder.png'
+  let publishPlaceholder = false
+  if (options.siteUrl) {
+    const origin = options.siteUrl.replace(/\/$/, '')
+    const base = (this.options.router || {}).base || '/'
+    const ogImage =
+      options.ogImage ||
+      process.env.DOCS_OG_IMAGE ||
+      `${origin}${base}${placeholder}`
+    publishPlaceholder = ogImage === `${origin}${base}${placeholder}`
+
+    meta('og:site_name', 'og:site_name', siteName)
+    meta('og:type', 'og:type', 'website')
+    meta('og:url', 'og:url', `${origin}${base}`)
+    meta('og:title', 'og:title', siteName)
+    meta('og:description', 'og:description', tagline)
+    meta('og:image', 'og:image', ogImage)
+    /*
+     * No og:image:width or og:image:height. A repository's own card is
+     * whatever was uploaded, and an unfurler that is told the wrong size
+     * stretches the picture to it.
+     */
+    meta('twitter:card', 'twitter:card', 'summary_large_image')
+  }
+
+  /*
    * The files a crawler and an assistant read: sitemap.xml, llms.txt,
    * llms-full.txt, and robots.txt where this site is the root of its domain.
    *
@@ -243,12 +303,11 @@ module.exports = function dui(moduleOptions) {
         await importModule(pathToFileURL(join(__dirname, 'utils/seo.mjs')).href)
 
       const base = (this.options.router || {}).base || '/'
-      const runtime = this.options.publicRuntimeConfig || {}
       const site = {
         origin: options.siteUrl,
         base,
-        name: runtime.docsTitle || options.name || basename(repoRoot),
-        summary: runtime.docsTagline || '',
+        name: siteName,
+        summary: tagline,
         sections: options.llmsSections || [],
       }
       /*
@@ -276,6 +335,18 @@ module.exports = function dui(moduleOptions) {
       const dir = generator.options.generate.dir
       const write = (name, contents) =>
         promises.writeFile(join(dir, name), contents)
+
+      /*
+       * The placeholder card, into the output rather than into static/. A
+       * file in static/ is copied into the repository's own tree on every dev
+       * run, which every site would then have to ignore by name.
+       */
+      if (publishPlaceholder) {
+        copyFileSync(
+          join(__dirname, 'assets', placeholder),
+          join(dir, placeholder)
+        )
+      }
 
       await write('sitemap.xml', buildSitemap(pages, site))
       await write('llms.txt', buildLlmsTxt(pages, site))
