@@ -1,37 +1,63 @@
-# Words this project uses that the standard dictionaries do not carry.
+
 # Add a term here rather than switching the check off for a file.
+# British spelling, as the rest of the repository uses, the chokidar
+# Font stacks named in the Tailwind preset.
+# SVG text spans in the diagram styles, and the cross-origin header the
+# StackBlitz panel explains it cannot set.
+# The DruxtJS interface library: its component prefix, the packages it builds
+# Words this project uses that the standard dictionaries do not carry.
+# environment variable scripts/watch.mjs reads, and the lockfile constant in
+# on, and the British spellings its prose uses.
+# scripts/lint-private-refs.mjs.
+Autobuild
+COEP
+Codespaces
+Colours
+Consolas
+DDEV
+Druxt
+Ksection
+LOCKFILES
+Lando
+Licence
+Menlo
+Neue
+Nuxt
+Segoe
+Serialised
+Stackblitz
+USEPOLLING
 actionlint
 autobuild
-Autobuild
 automerge
 behaviour
 bookworm
 cloudflared
-Codespaces
 colour
+colours
 commitlint
 consola
 corepack
 cspell
+daisyui
 davidanson
 dbaeumer
-DDEV
 devcontainer
 devcontainers
 druxt
-Druxt
 druxtjs
+duiheader
 esbenp
 esbuild
 freetype
 gitleaks
 hverlin
 hyperscript
+initialises
 interruptible
 jsonapi
 knip
-Ksection
-Lando
+labelledby
 libfreetype
 libicu
 libjpeg
@@ -40,57 +66,30 @@ libpng
 libsqlite
 libxml
 libzip
-Licence
 lndo
 markdownlint
 mise
+mkdist
 networkidle
+normalising
 nproc
-Nuxt
 nuxt
+nuxtjs
 nvm
 nvmrc
 opcache
 opencode
 pdo
+prismjs
 pyyaml
+serialises
 shivammathur
 siroc
 sqlite
+stackblitz
+tailwindcss
+tspan
 unparseable
 vfox
 viewports
 yamllint
-
-# The DruxtJS interface library: its component prefix, the packages it builds
-# on, and the British spellings its prose uses.
-colours
-Colours
-daisyui
-mkdist
-duiheader
-initialises
-serialises
-nuxtjs
-prismjs
-stackblitz
-Stackblitz
-tailwindcss
-# Font stacks named in the Tailwind preset.
-Consolas
-Menlo
-Neue
-Segoe
-
-# SVG text spans in the diagram styles, and the cross-origin header the
-# StackBlitz panel explains it cannot set.
-tspan
-COEP
-
-# British spelling, as the rest of the repository uses, the chokidar
-# environment variable scripts/watch.mjs reads, and the lockfile constant in
-# scripts/lint-private-refs.mjs.
-LOCKFILES
-normalising
-Serialised
-USEPOLLING

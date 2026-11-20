@@ -13,5 +13,11 @@
     "src/utils/**/*.js",
     "scripts/*.mjs"
   ],
-  "project": ["src/**/*.{js,vue}", "scripts/**/*.{js,mjs}"]
+  "project": ["src/**/*.{js,vue}", "scripts/**/*.{js,mjs}"],
+  // knip holds that code importing a package means the package is required,
+  // so a referenced optional peer reads as a mistake. Here it is the design:
+  // the mermaid plugin is copied into the consuming site's build directory,
+  // where the specifier resolves from that site rather than from here, and a
+  // site without mermaid keeps the code block the diagram was authored as.
+  "ignoreDependencies": ["mermaid"]
 }
