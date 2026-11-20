@@ -336,6 +336,18 @@ module.exports = function dui(moduleOptions) {
   })
 
   /*
+   * The scroll region and stacked layout on rendered tables; the theme already
+   * styles both. Without this a wide table is capped at the content column and
+   * the browser squeezes its columns, so a reference table on a phone becomes
+   * a word a line.
+   */
+  this.addPlugin({
+    src: join(__dirname, 'plugins/tables.client.mjs'),
+    fileName: 'dui/tables.client.js',
+    mode: 'client',
+  })
+
+  /*
    * The colour mode control only does anything with this: the Nuxt 2 release
    * of @nuxtjs/color-mode toggles a class, and daisyUI reads a data-theme
    * attribute.
